@@ -22,6 +22,7 @@ export async function uploadToR2(filePath: string, fileName: string): Promise<st
       Key: fileName,
       Body: fileStream,
       ContentType: 'video/mp4',
+      ACL: 'public-read',  // ADD THIS LINE
     },
   });
 
