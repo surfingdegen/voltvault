@@ -7,6 +7,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import pool from './db';
+import { uploadToR2 } from './r2-upload';
 
 dotenv.config();
 
@@ -20,16 +21,13 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Create uploads directory
-const uploadsDir = path.join(__dirname, '../uploads');
+// Create temporary uploads directory
+const uploadsDir = path.join(__dirname, '../temp-uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Serve uploaded files
-app.use('/uploads', express.static(uploadsDir));
-
-// Configure multer for video uploads
+// Configure multer for temporary storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
@@ -54,7 +52,7 @@ const upload = multer({
   }
 });
 
-// Simple session storage (in production, use Redis or similar)
+// Simple session storage
 const sessions = new Set<string>();
 
 // ============ AUTH ROUTES ============
@@ -148,15 +146,25 @@ app.post('/api/videos/upload', requireAuth, upload.single('video'), async (req, 
     }
 
     const { title, categoryId, duration } = req.body;
-    const videoUrl = `/uploads/${req.file.filename}`;
+    const tempPath = req.file.path;
+    const fileName = req.file.filename;
+
+    // Upload to R2
+    console.log('Uploading to R2...');
+    const r2Url = await uploadToR2(tempPath, fileName);
+    console.log('Uploaded to R2:', r2Url);
+
+    // Delete temp file
+    fs.unlinkSync(tempPath);
 
     // Get max order
     const maxOrderResult = await pool.query('SELECT MAX(display_order) as max_order FROM videos');
     const nextOrder = (maxOrderResult.rows[0].max_order || 0) + 1;
 
+    // Save to database with R2 URL
     const result = await pool.query(
       'INSERT INTO videos (title, category_id, url, duration, display_order) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [title, categoryId || null, videoUrl, duration || '0.6s', nextOrder]
+      [title, categoryId || null, r2Url, duration || '0.6s', nextOrder]
     );
 
     res.json(result.rows[0]);
@@ -169,14 +177,11 @@ app.post('/api/videos/upload', requireAuth, upload.single('video'), async (req, 
 app.delete('/api/videos/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
-    // Get video info to delete file
+    // Get video info
     const video = await pool.query('SELECT url FROM videos WHERE id = $1', [id]);
-    if (video.rows[0]) {
-      const filePath = path.join(__dirname, '..', video.rows[0].url);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
+    
+    // Note: R2 deletion would go here if needed
+    // For now, just remove from database
 
     await pool.query('DELETE FROM videos WHERE id = $1', [id]);
     res.json({ success: true });
