@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -16,6 +18,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
   credentials: true
 }));
+app.use(express.json());
 
 // Create uploads directory
 const uploadsDir = path.join(__dirname, '../uploads');
