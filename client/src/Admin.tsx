@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import AdminLogin from './components/AdminLogin';
+import { AdminLogin } from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Check if already logged in
     const token = localStorage.getItem('adminToken');
     if (token) {
       setIsAuthenticated(true);
