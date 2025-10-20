@@ -10,7 +10,7 @@ export const VideoFeed = () => {
   const touchStartY = useRef<number>(0);
   const isScrolling = useRef<boolean>(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const API_URL = '';
 
   useEffect(() => {
     fetchVideos();
