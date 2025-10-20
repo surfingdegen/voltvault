@@ -12,8 +12,6 @@ export const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
   const [isMuted, setIsMuted] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
   useEffect(() => {
     if (!videoRef.current) return;
 
@@ -41,7 +39,7 @@ export const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
 
       <video
         ref={videoRef}
-        src={`${API_URL}${video.url}`}
+        src={video.url}
         className="w-full h-full object-contain"
         loop
         muted={isMuted}
