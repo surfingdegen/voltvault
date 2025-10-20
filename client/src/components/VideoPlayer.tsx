@@ -5,9 +5,10 @@ import type { Video } from '../types';
 interface VideoPlayerProps {
   video: Video;
   isActive: boolean;
+  shouldPreload?: boolean;
 }
 
-export const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
+export const VideoPlayer = ({ video, isActive, shouldPreload }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +37,7 @@ export const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
           <div className="w-12 h-12 border-4 border-gray-600 border-t-white rounded-full animate-spin" />
         </div>
       )}
-
+      
       <video
         ref={videoRef}
         src={video.url}
@@ -44,12 +45,10 @@ export const VideoPlayer = ({ video, isActive }: VideoPlayerProps) => {
         loop
         muted={isMuted}
         playsInline
-        preload="auto"
+        preload={isActive ? "auto" : shouldPreload ? "auto" : "metadata"}
         onLoadedData={() => setIsLoading(false)}
         onClick={toggleMute}
       />
-
-      {/* Video Info Overlay - REMOVED */}
 
       {/* Mute Toggle */}
       <button

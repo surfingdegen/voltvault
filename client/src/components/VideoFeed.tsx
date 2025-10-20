@@ -16,21 +16,21 @@ export const VideoFeed = () => {
     fetchVideos();
   }, []);
 
-const fetchVideos = async () => {
-  try {
-    const response = await fetch(`${API_URL}/api/videos`);
-    const data = await response.json();
-    
-    // Randomize video order
-    const shuffled = data.sort(() => Math.random() - 0.5);
-    
-    setVideos(shuffled);
-    setLoading(false);
-  } catch (error) {
-    console.error('Error fetching videos:', error);
-    setLoading(false);
-  }
-};
+  const fetchVideos = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/videos`);
+      const data = await response.json();
+      
+      // Randomize video order
+      const shuffled = data.sort(() => Math.random() - 0.5);
+      
+      setVideos(shuffled);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching videos:', error);
+      setLoading(false);
+    }
+  };
 
   const scrollToIndex = (index: number) => {
     if (isScrolling.current) return;
@@ -110,7 +110,11 @@ const fetchVideos = async () => {
           key={video.id}
           className="h-screen w-screen snap-start snap-always"
         >
-          <VideoPlayer video={video} isActive={index === currentIndex} />
+          <VideoPlayer 
+            video={video} 
+            isActive={index === currentIndex}
+            shouldPreload={index === currentIndex + 1}
+          />
         </div>
       ))}
     </div>
