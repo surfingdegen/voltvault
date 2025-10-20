@@ -1,78 +1,114 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
 
 interface AdminLoginProps {
-  onLogin: (token: string) => void;
+  onLogin: () => void;
 }
 
-export const AdminLogin = ({ onLogin }: AdminLoginProps) => {
+export function AdminLogin({ onLogin }: AdminLoginProps) {
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/admin/login`, {
+      const response = await fetch('/api/auth?action=login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ password }),
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        localStorage.setItem('admin_token', data.token);
-        onLogin(data.token);
-      } else {
-        setError('Invalid password');
+      if (!response.ok) {
+        throw new Error('Invalid password');
       }
+
+      const { token } = await response.json();
+      localStorage.setItem('adminToken', token);
+      onLogin();
     } catch (err) {
-      setError('Connection error');
+      setError('Invalid password');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-4">
-      <div className="bg-gray-900 rounded-lg p-8 max-w-md w-full border border-gray-700">
-        <h1 className="text-3xl font-bold text-white mb-6">Admin Login</h1>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(to bottom, #1a1a2e, #6b21a8, #1a1a2e)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '400px',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '10px',
+        padding: '40px'
+      }}>
+        <h1 style={{
+          fontSize: '32px',
+          fontWeight: 'bold',
+          color: 'white',
+          marginBottom: '30px',
+          textAlign: 'center'
+        }}>
+          Admin Login
+        </h1>
         
-        <form onSubmit={handleSubmit}>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter admin password"
-            className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <label style={{ color: 'white', display: 'block', marginBottom: '8px' }}>
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter admin password"
+              required
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '5px',
+                color: 'white',
+                fontSize: '16px'
+              }}
+            />
+          </div>
+
+          {error && (
+            <p style={{ color: '#ef4444', textAlign: 'center' }}>{error}</p>
+          )}
 
           <button
             type="submit"
-            disabled={loading || !password}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: '#7c3aed',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.6 : 1
+            }}
           >
-            {loading ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                Logging in...
-              </>
-            ) : (
-              'Login'
-            )}
+            {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-
-        {error && (
-          <p className="mt-4 text-red-400 text-sm text-center">{error}</p>
-        )}
       </div>
     </div>
   );
-};
+}
