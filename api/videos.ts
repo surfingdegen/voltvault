@@ -6,6 +6,29 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+async function ensureDefaultCategory(): Promise<string> {
+  try {
+    // Try to find existing "Uncategorized" category
+    const existing = await pool.query(
+      "SELECT id FROM categories WHERE name = 'Uncategorized' LIMIT 1"
+    );
+    
+    if (existing.rows.length > 0) {
+      return existing.rows[0].id;
+    }
+    
+    // Create it if it doesn't exist
+    const result = await pool.query(
+      "INSERT INTO categories (name) VALUES ('Uncategorized') RETURNING id"
+    );
+    
+    return result.rows[0].id;
+  } catch (error) {
+    console.error('Error ensuring default category:', error);
+    throw error;
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { method } = req;
   const { id } = req.query;
@@ -40,9 +63,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Title and URL are required' });
       }
 
+      // Get or create default category if none provided
+      const finalCategoryId = categoryId || await ensureDefaultCategory();
+
       const result = await pool.query(
         'INSERT INTO videos (title, category_id, url, duration, thumbnail, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *',
-        [title, categoryId || null, url, '0:00', null]
+        [title, finalCategoryId, url, '0:00', null]
       );
 
       return res.status(201).json(result.rows[0]);
