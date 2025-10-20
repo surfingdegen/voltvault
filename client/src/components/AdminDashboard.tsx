@@ -55,14 +55,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       const { url } = await uploadResponse.json();
 
       const randomTitle = `Video ${Math.random().toString(36).substring(7)}`;
-      const defaultCategory = 'default';
 
       const addResponse = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: randomTitle,
-          categoryId: defaultCategory,
+          categoryId: null,
           url: url,
         }),
       });
