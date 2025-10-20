@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Video {
   id: string;
@@ -13,90 +13,72 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadedVideoUrl, setUploadedVideoUrl] = useState('');
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
   const [videos, setVideos] = useState<Video[]>([]);
+
+  useEffect(() => {
+    loadVideos();
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setUploadFile(file);
+      uploadVideo(file);
     }
   };
 
-  const handleUpload = async () => {
-    if (!uploadFile) {
-      alert('Please select a file first');
-      return;
-    }
-
+  const uploadVideo = async (file: File) => {
     setIsUploading(true);
     setUploadProgress(0);
 
     try {
       const formData = new FormData();
-      formData.append('video', uploadFile);
+      formData.append('video', file);
 
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 500);
 
-      const response = await fetch('/api/upload', {
+      const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
       clearInterval(progressInterval);
-      setUploadProgress(100);
+      setUploadProgress(95);
 
-      if (!response.ok) {
+      if (!uploadResponse.ok) {
         throw new Error('Upload failed');
       }
 
-      const { url } = await response.json();
-      setUploadedVideoUrl(url);
-      alert('Upload successful! URL: ' + url);
+      const { url } = await uploadResponse.json();
+
+      const randomTitle = `Video ${Math.random().toString(36).substring(7)}`;
+      const defaultCategory = 'default';
+
+      const addResponse = await fetch('/api/videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: randomTitle,
+          categoryId: defaultCategory,
+          url: url,
+        }),
+      });
+
+      if (!addResponse.ok) {
+        throw new Error('Failed to add video to database');
+      }
+
+      setUploadProgress(100);
+      alert('Video uploaded successfully!');
+      loadVideos();
     } catch (error) {
       alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
-    }
-  };
-
-  const handleAddVideo = async () => {
-    if (!title || !category || !uploadedVideoUrl) {
-      alert('Please fill in all fields and upload a video first');
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/videos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          categoryId: category,
-          url: uploadedVideoUrl,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add video');
-      }
-
-      alert('Video added successfully!');
-      setTitle('');
-      setCategory('');
-      setUploadedVideoUrl('');
-      setUploadFile(null);
-      loadVideos();
-    } catch (error) {
-      alert('Failed to add video: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -107,6 +89,23 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       setVideos(data);
     } catch (error) {
       console.error('Failed to load videos:', error);
+    }
+  };
+
+  const deleteVideo = async (id: string) => {
+    if (!confirm('Delete this video?')) return;
+
+    try {
+      const response = await fetch(`/api/videos?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('Video deleted');
+        loadVideos();
+      }
+    } catch (error) {
+      alert('Delete failed');
     }
   };
 
@@ -138,123 +137,46 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         <h2 style={{ fontSize: '24px', marginBottom: '20px' }}>Upload Video</h2>
         
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '10px' }}>Choose Video File:</label>
           <input 
             type="file" 
             accept="video/*"
             onChange={handleFileSelect}
             disabled={isUploading}
             style={{
-              padding: '10px',
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: '5px',
+              padding: '15px',
+              backgroundColor: '#7c3aed',
+              border: 'none',
+              borderRadius: '8px',
               color: 'white',
-              width: '100%'
+              cursor: isUploading ? 'not-allowed' : 'pointer',
+              fontSize: '16px',
+              fontWeight: 'bold'
             }}
           />
+          <p style={{ marginTop: '10px', fontSize: '14px', opacity: 0.7 }}>
+            Choose .mov or .mp4 file. Max 100MB.
+          </p>
         </div>
 
-        {uploadFile && !uploadedVideoUrl && (
-          <button
-            onClick={handleUpload}
-            disabled={isUploading}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: '#7c3aed',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: isUploading ? 'not-allowed' : 'pointer',
-              marginBottom: '20px',
-              opacity: isUploading ? 0.6 : 1
-            }}
-          >
-            {isUploading ? `Uploading... ${uploadProgress}%` : 'Upload to Vercel Blob'}
-          </button>
-        )}
-
         {isUploading && (
-          <div style={{ 
-            width: '100%', 
-            backgroundColor: 'rgba(255,255,255,0.2)', 
-            borderRadius: '10px', 
-            height: '10px',
-            marginBottom: '20px',
-            overflow: 'hidden'
-          }}>
+          <div>
             <div style={{ 
-              width: `${uploadProgress}%`, 
-              backgroundColor: '#7c3aed', 
-              height: '100%',
-              transition: 'width 0.3s'
-            }} />
-          </div>
-        )}
-
-        {uploadedVideoUrl && (
-          <>
-            <div style={{ 
-              padding: '15px', 
-              backgroundColor: 'rgba(34,197,94,0.2)', 
-              borderRadius: '5px',
-              marginBottom: '20px',
-              color: '#4ade80'
+              width: '100%', 
+              backgroundColor: 'rgba(255,255,255,0.2)', 
+              borderRadius: '10px', 
+              height: '20px',
+              marginBottom: '10px',
+              overflow: 'hidden'
             }}>
-              ✓ Video uploaded successfully! URL: {uploadedVideoUrl}
+              <div style={{ 
+                width: `${uploadProgress}%`, 
+                backgroundColor: '#7c3aed', 
+                height: '100%',
+                transition: 'width 0.3s'
+              }} />
             </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Title:</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter video title"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '5px',
-                  color: 'white'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Category:</label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="Enter category ID"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '5px',
-                  color: 'white'
-                }}
-              />
-            </div>
-
-            <button
-              onClick={handleAddVideo}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: '#22c55e',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              Add Video to Database
-            </button>
-          </>
+            <p style={{ textAlign: 'center' }}>Uploading... {uploadProgress}%</p>
+          </div>
         )}
       </div>
 
@@ -263,33 +185,45 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         padding: '30px', 
         borderRadius: '10px'
       }}>
-        <h2 style={{ fontSize: '24px', marginBottom: '20px' }}>Uploaded Videos</h2>
-        <button 
-          onClick={loadVideos}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#7c3aed',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            marginBottom: '20px'
-          }}
-        >
-          Load Videos
-        </button>
+        <h2 style={{ fontSize: '24px', marginBottom: '20px' }}>Uploaded Videos ({videos.length})</h2>
 
         <div>
           {videos.map(video => (
             <div key={video.id} style={{
               backgroundColor: 'rgba(255,255,255,0.1)',
-              padding: '15px',
+              padding: '20px',
               borderRadius: '8px',
-              marginBottom: '10px'
+              marginBottom: '15px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
             }}>
-              <p style={{ fontSize: '14px', opacity: 0.7 }}>URL: {video.url}</p>
+              <div>
+                <p style={{ fontSize: '14px', opacity: 0.7 }}>Uploaded: {new Date(video.created_at).toLocaleDateString()}</p>
+                <p style={{ fontSize: '12px', opacity: 0.5, marginTop: '5px', wordBreak: 'break-all' }}>{video.url}</p>
+              </div>
+              <button
+                onClick={() => deleteVideo(video.id)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  marginLeft: '20px'
+                }}
+              >
+                Delete
+              </button>
             </div>
           ))}
+
+          {videos.length === 0 && (
+            <p style={{ textAlign: 'center', opacity: 0.5, padding: '40px' }}>
+              No videos uploaded yet
+            </p>
+          )}
         </div>
       </div>
     </div>
