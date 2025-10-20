@@ -287,7 +287,6 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
               borderRadius: '8px',
               marginBottom: '10px'
             }}>
-              <h3 style={{ fontSize: '18px', marginBottom: '5px' }}>{video.title}</h3>
               <p style={{ fontSize: '14px', opacity: 0.7 }}>URL: {video.url}</p>
             </div>
           ))}
